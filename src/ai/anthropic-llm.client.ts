@@ -35,7 +35,8 @@ export class AnthropicLlmClient extends LlmClient {
             input_schema: { type: 'object', ...request.inputSchema },
           },
         ],
-        tool_choice: { type: 'tool', name: request.toolName },
+        // El modelo no admite tool_choice forzado (type tool/any): el system prompt exige la herramienta.
+        tool_choice: { type: 'auto' },
       });
     } catch (err) {
       throw new BadGatewayException(

@@ -29,3 +29,10 @@ export const actaEjemplo: ActaEstructurada = {
   ],
   cierre: { horaFinalizacion: '10:45' },
 };
+
+export const setupEjemplo = {
+  institucion: actaEjemplo.institucion,
+  metadatos: actaEjemplo.metadatos,
+  tipoActa: actaEjemplo.tipoActa,
+  asistentes: actaEjemplo.asistentes.slice(0, 2),
+};

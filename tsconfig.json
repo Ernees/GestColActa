@@ -4,7 +4,7 @@
     "moduleResolution": "node10",
     "target": "ES2022",
     "lib": ["ES2022"],
-    "types": ["node", "jest"],
+    "types": ["node", "jest", "multer"],
     "declaration": true,
     "removeComments": true,
     "emitDecoratorMetadata": true,

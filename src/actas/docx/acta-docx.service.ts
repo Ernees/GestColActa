@@ -41,6 +41,7 @@ const ROL_LABEL: Record<RolAsistente, string> = {
   GABINETE: 'Gabinete',
 };
 
+const COL_WIDTH = 2800;
 const NO_BORDER = { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' } as const;
 const NO_BORDERS = {
   top: NO_BORDER,
@@ -230,68 +231,55 @@ export class ActaDocxService {
   }
 
   private firmas(acta: ActaEstructurada): FileChild[] {
-    const rows = acta.asistentes.map((a) => this.filaFirma(a));
-    const colWidth = 2800;
     return [
       this.titulo('Firmas'),
       new Table({
-        width: { size: colWidth * 3, type: WidthType.DXA },
-        columnWidths: [colWidth, colWidth, colWidth],
+        width: { size: COL_WIDTH * 3, type: WidthType.DXA },
+        columnWidths: [COL_WIDTH, COL_WIDTH, COL_WIDTH],
         borders: {
           ...NO_BORDERS,
           insideHorizontal: NO_BORDER,
           insideVertical: NO_BORDER,
         },
-        rows: [this.filaEncabezadoFirmas(colWidth), ...rows],
+        rows: acta.asistentes.map((a) => this.filaFirma(a)),
       }),
     ];
   }
 
-  private filaEncabezadoFirmas(width: number): TableRow {
-    const cell = (text: string): TableCell =>
-      new TableCell({
-        width: { size: width, type: WidthType.DXA },
-        borders: NO_BORDERS,
-        children: [
-          new Paragraph({
-            alignment: AlignmentType.CENTER,
-            children: [new TextRun({ text, bold: true })],
-          }),
-        ],
-      });
-    return new TableRow({
-      tableHeader: true,
-      cantSplit: true,
-      children: [cell('Firma'), cell('Aclaración'), cell('DNI / Rol')],
-    });
-  }
-
+  /** Renglón de firma libre + rótulos "Aclaración" y "DNI / Rol" debajo de su línea. */
   private filaFirma(a: Asistente): TableRow {
-    const width = 2800;
-    const cell = (line: string, caption: string): TableCell =>
+    const cell = (caption?: { label: string; value: string }): TableCell =>
       new TableCell({
-        width: { size: width, type: WidthType.DXA },
+        width: { size: COL_WIDTH, type: WidthType.DXA },
         borders: NO_BORDERS,
-        margins: { left: 100, right: 100 },
+        margins: { left: 100, right: 100, bottom: 360 },
         children: [
           new Paragraph({
-            spacing: { before: 720 },
-            alignment: AlignmentType.CENTER,
+            spacing: { before: 1200 },
             border: {
               bottom: { style: BorderStyle.DOTTED, size: 8, color: '000000', space: 1 },
             },
-            children: [new TextRun(line)],
+            children: [],
           }),
           new Paragraph({
             alignment: AlignmentType.CENTER,
-            children: [new TextRun({ text: caption, size: 18 })],
+            children: caption
+              ? [
+                  new TextRun({ text: `${caption.label}: `, bold: true, size: 18 }),
+                  new TextRun({ text: caption.value, size: 18 }),
+                ]
+              : [],
           }),
         ],
       });
     const dniRol = a.dni ? `${a.dni} / ${ROL_LABEL[a.rol]}` : ROL_LABEL[a.rol];
     return new TableRow({
       cantSplit: true,
-      children: [cell('', 'Firma'), cell('', a.nombre), cell('', dniRol)],
+      children: [
+        cell(),
+        cell({ label: 'Aclaración', value: a.nombre }),
+        cell({ label: 'DNI / Rol', value: dniRol }),
+      ],
     });
   }
 

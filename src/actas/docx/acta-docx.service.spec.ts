@@ -55,6 +55,8 @@ describe('ActaDocxService', () => {
     expect(xml).toContain('Aclaración');
     expect(xml).toContain('DNI / Rol');
     expect(xml).toContain('20.111.222 / Directivo/a');
+    // el renglón de firma queda libre: sin rótulo "Firma" debajo de la línea
+    expect(xml).not.toMatch(/<w:t[^>]*>Firma<\/w:t>/);
   });
 
   it('omite secciones vacías sin romperse', async () => {

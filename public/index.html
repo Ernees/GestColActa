@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GestColActa — Actas escolares</title>
+<style>
+  :root { --ink:#1b2a41; --muted:#5b6b7f; --line:#d6dce4; --bg:#f4f6f9; --accent:#1f4e79; --rec:#b3261e; --ok:#1e7a46; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:15px/1.5 system-ui,-apple-system,Segoe UI,sans-serif; color:var(--ink); background:var(--bg); }
+  header { background:var(--accent); color:#fff; padding:18px 24px; }
+  header h1 { margin:0; font-size:20px; letter-spacing:.3px; }
+  header p { margin:2px 0 0; opacity:.8; font-size:13px; }
+  main { max-width:860px; margin:24px auto; padding:0 16px 64px; display:grid; gap:18px; }
+  section { background:#fff; border:1px solid var(--line); border-radius:10px; padding:18px 20px; }
+  h2 { margin:0 0 12px; font-size:15px; text-transform:uppercase; letter-spacing:.6px; color:var(--accent); }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:12px; }
+  label { display:block; font-size:12px; color:var(--muted); margin-bottom:3px; }
+  input, select, textarea { width:100%; padding:8px 10px; border:1px solid var(--line); border-radius:6px; font:inherit; color:inherit; background:#fff; }
+  textarea { resize:vertical; min-height:70px; }
+  button { font:inherit; cursor:pointer; border:1px solid var(--line); background:#fff; border-radius:8px; padding:9px 16px; }
+  button:disabled { opacity:.45; cursor:not-allowed; }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600; }
+  button.small { padding:4px 10px; font-size:13px; }
+  .row { display:grid; grid-template-columns:2fr 1.2fr 1.2fr auto; gap:8px; align-items:end; margin-bottom:8px; }
+  .rec-box { display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+  #recBtn { width:72px; height:72px; border-radius:50%; border:3px solid var(--rec); background:#fff; padding:0; position:relative; }
+  #recBtn::after { content:""; position:absolute; inset:16px; background:var(--rec); border-radius:50%; transition:.15s; }
+  #recBtn.on::after { inset:22px; border-radius:4px; }
+  #recBtn.on { animation:pulse 1.4s infinite; }
+  @keyframes pulse { 0%{box-shadow:0 0 0 0 rgba(179,38,30,.45)} 100%{box-shadow:0 0 0 16px rgba(179,38,30,0)} }
+  #timer { font:600 28px ui-monospace,Menlo,monospace; min-width:90px; }
+  #meter { width:140px; height:10px; background:var(--line); border-radius:5px; overflow:hidden; }
+  #meter i { display:block; height:100%; width:0; background:var(--ok); transition:width .08s; }
+  .hint { color:var(--muted); font-size:13px; }
+  #status { padding:12px 16px; border-radius:8px; display:none; font-size:14px; }
+  #status.info { display:block; background:#e8f0fa; color:#12365a; }
+  #status.err { display:block; background:#fdecea; color:#7a1612; white-space:pre-wrap; }
+  .spin { display:inline-block; width:14px; height:14px; border:2px solid #9bb7d4; border-top-color:var(--accent); border-radius:50%; animation:sp 1s linear infinite; vertical-align:-2px; margin-right:8px; }
+  @keyframes sp { to { transform:rotate(360deg); } }
+  #result { display:none; }
+  .ac { border:1px solid var(--line); border-radius:8px; padding:10px; margin-bottom:8px; display:grid; gap:8px; grid-template-columns:3fr 1.3fr 1.1fr auto; align-items:end; }
+  details { margin-top:10px; } summary { cursor:pointer; color:var(--muted); font-size:13px; }
+  .seg { font-size:13px; padding:3px 0; border-bottom:1px dashed var(--line); } .seg b { color:var(--accent); }
+  audio { width:100%; margin-top:10px; }
+  @media (max-width:640px){ .row,.ac{ grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<header><h1>GestColActa</h1><p>Grabá la reunión y obtené el acta en Word, lista para firmar.</p></header>
+<main>
+  <section>
+    <h2>1 · Datos de la reunión</h2>
+    <div class="grid">
+      <div><label>Institución</label><input id="inst" value="Highest College"></div>
+      <div><label>Nivel / subtítulo</label><input id="sub" value="Nivel Primario"></div>
+      <div><label>Tipo de acta</label>
+        <select id="tipo">
+          <option value="CONVIVENCIA">Convivencia (familias)</option>
+          <option value="PEDAGOGICA">Pedagógica</option>
+          <option value="EMI_INTERNA">EMI / reunión interna</option>
+          <option value="GENERAL">General</option>
+        </select></div>
+      <div><label>Fecha</label><input id="fecha" type="date"></div>
+      <div><label>Lugar</label><input id="lugar" value="la Sala de Reuniones"></div>
+      <div><label>Hora de inicio</label><input id="hIni" type="time"></div>
+      <div><label>Hora de fin</label><input id="hFin" type="time"></div>
+    </div>
+    <h2 style="margin-top:18px">Asistentes</h2>
+    <div id="asis"></div>
+    <button class="small" id="addAsis" type="button">+ Agregar asistente</button>
+    <p class="hint">Cuanto más claros los nombres y roles, mejor identifica la IA quién habló.</p>
+  </section>
+
+  <section>
+    <h2>2 · Grabación</h2>
+    <div class="rec-box">
+      <button id="recBtn" type="button" aria-label="Grabar / detener"></button>
+      <div id="timer">00:00</div>
+      <div><div id="meter"><i></i></div><div class="hint" id="recHint">Tocá el círculo para grabar</div></div>
+    </div>
+    <audio id="player" controls hidden></audio>
+    <p class="hint" style="margin-bottom:6px">¿Ya tenés un audio? (m4a, mp3, wav, webm)</p>
+    <input id="file" type="file" accept="audio/*,.m4a,.mp3,.wav,.webm">
+  </section>
+
+  <section>
+    <button class="primary" id="procesar" type="button" disabled>3 · Generar acta</button>
+    <div id="status"></div>
+  </section>
+
+  <section id="result">
+    <h2>4 · Revisá y editá</h2>
+    <label>Motivo</label><textarea id="motivo"></textarea>
+    <label style="margin-top:10px">Puntos tratados (uno por línea)</label><textarea id="desarrollo" style="min-height:160px"></textarea>
+    <label style="margin-top:10px">Acuerdos y compromisos</label>
+    <div id="acuerdos"></div>
+    <button class="small" id="addAc" type="button">+ Agregar acuerdo</button>
+    <details><summary>Quién es quién (hablantes) y transcripción</summary>
+      <div id="mapeo" class="hint" style="margin:8px 0"></div><div id="trans"></div></details>
+    <div style="margin-top:16px"><button class="primary" id="descargar" type="button">Descargar Word (.docx)</button></div>
+  </section>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const ROLES = [['DIRECTIVO','Directivo/a'],['DOCENTE','Docente'],['TUTOR','Tutor/a'],['ALUMNO','Alumno/a'],['GABINETE','Gabinete']];
+const pad = (n) => String(n).padStart(2,'0');
+const hhmm = (d) => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+let acta = null, recorder = null, chunks = [], audioBlob = null, startedAt = 0, tick = null, stream = null, ctx = null, raf = 0;
+
+// ---------- estado persistente ----------
+const SAVED = JSON.parse(localStorage.getItem('gca') || 'null');
+$('fecha').value = new Date().toISOString().slice(0,10);
+if (SAVED) { $('inst').value = SAVED.inst; $('sub').value = SAVED.sub; $('lugar').value = SAVED.lugar; $('tipo').value = SAVED.tipo; }
+
+function addAsis(a = { nombre:'', rol:'DOCENTE', dni:'' }) {
+  const d = document.createElement('div'); d.className = 'row';
+  d.innerHTML = `<div><label>Nombre y apellido</label><input class="n" value=""></div>
+    <div><label>Rol</label><select class="r">${ROLES.map(([v,t])=>`<option value="${v}">${t}</option>`).join('')}</select></div>
+    <div><label>DNI (opcional)</label><input class="d"></div>
+    <button type="button" class="small" title="Quitar">✕</button>`;
+  d.querySelector('.n').value = a.nombre; d.querySelector('.r').value = a.rol; d.querySelector('.d').value = a.dni || '';
+  d.querySelector('button').onclick = () => { d.remove(); refresh(); };
+  d.addEventListener('input', refresh);
+  $('asis').appendChild(d);
+}
+(SAVED?.asis?.length ? SAVED.asis : [{nombre:'Laura Benítez',rol:'DIRECTIVO',dni:''},{nombre:'Carlos Domínguez',rol:'TUTOR',dni:''}]).forEach(addAsis);
+$('addAsis').onclick = () => addAsis();
+
+const asistentes = () => [...$('asis').children].map(r => {
+  const dni = r.querySelector('.d').value.trim();
+  return { nombre: r.querySelector('.n').value.trim(), rol: r.querySelector('.r').value, ...(dni ? { dni } : {}) };
+}).filter(a => a.nombre);
+
+function setup() {
+  return { institucion: { nombre: $('inst').value.trim(), ...($('sub').value.trim() ? { subtitulo: $('sub').value.trim() } : {}) },
+    metadatos: { fecha: $('fecha').value, horaInicio: $('hIni').value, horaFin: $('hFin').value, lugar: $('lugar').value.trim() },
+    tipoActa: $('tipo').value, asistentes: asistentes() };
+}
+function refresh() {
+  const s = setup();
+  $('procesar').disabled = !(audioBlob && s.institucion.nombre && s.metadatos.fecha && s.metadatos.horaInicio && s.metadatos.horaFin && s.metadatos.lugar && s.asistentes.length);
+}
+document.querySelectorAll('section input, section select').forEach(e => e.addEventListener('input', refresh));
+
+// ---------- grabación ----------
+function pickMime() {
+  return ['audio/webm;codecs=opus','audio/webm','audio/mp4'].find(t => window.MediaRecorder && MediaRecorder.isTypeSupported(t)) || '';
+}
+function drawMeter(analyser) {
+  const buf = new Uint8Array(analyser.fftSize);
+  (function loop() {
+    analyser.getByteTimeDomainData(buf);
+    let peak = 0; for (const v of buf) peak = Math.max(peak, Math.abs(v - 128));
+    $('meter').firstElementChild.style.width = Math.min(100, peak / 64 * 100) + '%';
+    raf = requestAnimationFrame(loop);
+  })();
+}
+async function startRec() {
+  try { stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }); }
+  catch (e) { return showErr('No se pudo acceder al micrófono: ' + e.message); }
+  const mime = pickMime();
+  recorder = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+  chunks = []; audioBlob = null; $('player').hidden = true;
+  recorder.ondataavailable = (e) => e.data.size && chunks.push(e.data);
+  recorder.onstop = () => {
+    audioBlob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' });
+    $('player').src = URL.createObjectURL(audioBlob); $('player').hidden = false;
+    $('hFin').value = hhmm(new Date()); refresh();
+    $('recHint').textContent = `Grabación lista (${(audioBlob.size/1024).toFixed(0)} KB). Podés regrabar.`;
+  };
+  ctx = new AudioContext(); const src = ctx.createMediaStreamSource(stream); const an = ctx.createAnalyser(); src.connect(an); drawMeter(an);
+  recorder.start(1000);
+  startedAt = Date.now(); $('hIni').value = hhmm(new Date()); $('hFin').value = '';
+  tick = setInterval(() => { const s = Math.floor((Date.now()-startedAt)/1000); $('timer').textContent = `${pad(Math.floor(s/60))}:${pad(s%60)}`; }, 250);
+  $('recBtn').classList.add('on'); $('recHint').textContent = 'Grabando… hablá con normalidad cerca del micrófono'; hideStatus(); refresh();
+}
+function stopRec() {
+  recorder.stop(); stream.getTracks().forEach(t => t.stop()); clearInterval(tick); cancelAnimationFrame(raf);
+  ctx.close(); $('meter').firstElementChild.style.width = '0'; $('recBtn').classList.remove('on');
+}
+$('recBtn').onclick = () => (recorder && recorder.state === 'recording') ? stopRec() : startRec();
+$('file').onchange = (e) => {
+  const f = e.target.files[0]; if (!f) return;
+  audioBlob = f; $('player').src = URL.createObjectURL(f); $('player').hidden = false;
+  if (!$('hIni').value) $('hIni').value = hhmm(new Date());
+  if (!$('hFin').value) $('hFin').value = hhmm(new Date());
+  $('recHint').textContent = 'Audio cargado: ' + f.name; refresh();
+};
+
+// ---------- UI helpers ----------
+function showInfo(html) { const s = $('status'); s.className = 'info'; s.innerHTML = html; }
+function showErr(msg) { const s = $('status'); s.className = 'err'; s.textContent = msg; }
+function hideStatus() { $('status').className = ''; }
+const errText = async (res) => { try { const j = await res.json(); return [].concat(j.message || j).join('\n'); } catch { return 'Error ' + res.status; } };
+const baseMime = (b) => (b.type || 'audio/webm').split(';')[0];
+const extOf = (m) => ({ 'audio/webm':'webm','video/webm':'webm','audio/mp4':'m4a','audio/x-m4a':'m4a','audio/m4a':'m4a','audio/mpeg':'mp3','audio/mp3':'mp3','audio/wav':'wav','audio/x-wav':'wav' }[m] || 'webm');
+
+// ---------- procesar ----------
+$('procesar').onclick = async () => {
+  const s = setup();
+  localStorage.setItem('gca', JSON.stringify({ inst: $('inst').value, sub: $('sub').value, lugar: $('lugar').value, tipo: $('tipo').value, asis: s.asistentes }));
+  const fd = new FormData();
+  const mime = baseMime(audioBlob);
+  fd.append('audio', new File([audioBlob], `reunion.${extOf(mime)}`, { type: mime }));
+  fd.append('metadata', JSON.stringify(s));
+  $('procesar').disabled = true; $('result').style.display = 'none';
+  showInfo('<span class="spin"></span>Transcribiendo y redactando el acta… (puede tardar un minuto)');
+  try {
+    const res = await fetch('/actas/procesar-reunion?formato=json', { method: 'POST', body: fd });
+    if (!res.ok) throw new Error(await errText(res));
+    renderResult(await res.json()); hideStatus();
+  } catch (e) { showErr(e.message); } finally { refresh(); }
+};
+
+function addAcuerdo(a = { compromiso:'', responsable:'', plazo:'' }) {
+  const d = document.createElement('div'); d.className = 'ac';
+  d.innerHTML = `<div><label>Compromiso</label><textarea class="c" style="min-height:48px"></textarea></div>
+    <div><label>Responsable</label><input class="r"></div><div><label>Plazo (opcional)</label><input class="p"></div>
+    <button type="button" class="small">✕</button>`;
+  d.querySelector('.c').value = a.compromiso; d.querySelector('.r').value = a.responsable; d.querySelector('.p').value = a.plazo || '';
+  d.querySelector('button').onclick = () => d.remove();
+  $('acuerdos').appendChild(d);
+}
+$('addAc').onclick = () => addAcuerdo();
+
+function renderResult(r) {
+  acta = r.acta;
+  $('motivo').value = acta.motivo; $('desarrollo').value = acta.desarrollo.join('\n');
+  $('acuerdos').innerHTML = ''; acta.acuerdos.forEach(addAcuerdo);
+  $('mapeo').textContent = r.mapeoHablantes.map(m => `Hablante ${m.speaker} → ${m.nombre ?? 'sin identificar'}`).join('  ·  ');
+  $('trans').innerHTML = '';
+  r.transcripcion.forEach(t => { const d = document.createElement('div'); d.className = 'seg';
+    const b = document.createElement('b'); b.textContent = `[${pad(Math.floor(t.start/60))}:${pad(Math.floor(t.start%60))}] H${t.speaker}: `;
+    d.append(b, document.createTextNode(t.text)); $('trans').appendChild(d); });
+  $('result').style.display = 'block'; $('result').scrollIntoView({ behavior: 'smooth' });
+}
+
+$('descargar').onclick = async () => {
+  const acuerdos = [...$('acuerdos').children].map(d => {
+    const plazo = d.querySelector('.p').value.trim();
+    return { compromiso: d.querySelector('.c').value.trim(), responsable: d.querySelector('.r').value.trim(), ...(plazo ? { plazo } : {}) };
+  }).filter(a => a.compromiso && a.responsable);
+  const body = { ...acta, motivo: $('motivo').value.trim(),
+    desarrollo: $('desarrollo').value.split('\n').map(l => l.trim()).filter(Boolean), acuerdos };
+  const res = await fetch('/actas/preview-docx', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (!res.ok) return showErr(await errText(res));
+  const a = document.createElement('a'); a.href = URL.createObjectURL(await res.blob());
+  a.download = `acta-${acta.tipoActa.toLowerCase()}-${acta.metadatos.fecha}.docx`; a.click();
+};
+refresh();
+</script>
+</body>
+</html>

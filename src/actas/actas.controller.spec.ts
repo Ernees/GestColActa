@@ -125,6 +125,16 @@ describe('ActasController', () => {
       expect(body.transcripcion.length).toBeGreaterThan(0);
     });
 
+    it('acepta mime con parámetros de MediaRecorder (audio/webm;codecs=opus)', async () => {
+      const res = await post('?formato=json')
+        .field('metadata', JSON.stringify(setupEjemplo))
+        .attach('audio', audio, {
+          filename: 'grabacion.webm',
+          contentType: 'audio/webm;codecs=opus',
+        });
+      expect(res.status).toBe(200);
+    });
+
     it('400 si falta el audio', async () => {
       const res = await post().field('metadata', JSON.stringify(setupEjemplo));
       expect(res.status).toBe(400);

@@ -199,7 +199,9 @@ export class ActaDocxService {
       this.titulo('Acuerdos y compromisos', 240),
       ...acta.acuerdos.map((a) => {
         const runs: TextRun[] = [
-          new TextRun(a.compromiso),
+          new TextRun(
+            /[.!?;:]$/.test(a.compromiso.trim()) ? a.compromiso : `${a.compromiso}.`,
+          ),
           new TextRun({ text: ' Responsable: ', bold: true }),
           new TextRun(a.responsable),
         ];

@@ -59,6 +59,16 @@ describe('ActaDocxService', () => {
     expect(xml).not.toMatch(/<w:t[^>]*>Firma<\/w:t>/);
   });
 
+  it('agrega punto final al compromiso si falta, antes de "Responsable"', async () => {
+    const xml = await documentXml(
+      await service.generate({
+        ...actaEjemplo,
+        acuerdos: [{ compromiso: 'Realizar una mediación', responsable: 'Tutor' }],
+      }),
+    );
+    expect(xml).toContain('Realizar una mediación.');
+  });
+
   it('omite secciones vacías sin romperse', async () => {
     const xml = await documentXml(
       await service.generate({ ...actaEjemplo, desarrollo: [], acuerdos: [] }),

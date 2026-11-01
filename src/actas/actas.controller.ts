@@ -45,6 +45,11 @@ export interface ProcesarReunionJson {
 
 const ALLOWED_MIMES: readonly string[] = AUDIO_MIME_TYPES;
 
+/** `audio/webm;codecs=opus` -> `audio/webm` (MediaRecorder agrega parámetros). */
+function baseMime(mime: string): string {
+  return (mime.split(';')[0] ?? mime).trim().toLowerCase();
+}
+
 @Controller('actas')
 export class ActasController {
   constructor(
@@ -73,7 +78,7 @@ export class ActasController {
     FileInterceptor('audio', {
       limits: { fileSize: MAX_AUDIO_BYTES, files: 1 },
       fileFilter: (_req, file, cb) => {
-        if (ALLOWED_MIMES.includes(file.mimetype)) {
+        if (ALLOWED_MIMES.includes(baseMime(file.mimetype))) {
           cb(null, true);
         } else {
           cb(

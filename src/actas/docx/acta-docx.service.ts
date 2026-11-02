@@ -36,9 +36,8 @@ const TITULO_POR_TIPO: Record<TipoActa, string> = {
 const ROL_LABEL: Record<RolAsistente, string> = {
   DIRECTIVO: 'Directivo/a',
   DOCENTE: 'Docente',
-  TUTOR: 'Tutor/a',
-  ALUMNO: 'Alumno/a',
-  GABINETE: 'Gabinete',
+  PADRE: 'Padre/Madre',
+  EOE: 'EOE',
 };
 
 const COL_WIDTH = 2800;

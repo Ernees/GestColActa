@@ -6,14 +6,12 @@ export const TIPOS_ACTA = [
 ] as const;
 export type TipoActa = (typeof TIPOS_ACTA)[number];
 
-export const ROLES_ASISTENTE = [
-  'DIRECTIVO',
-  'DOCENTE',
-  'TUTOR',
-  'ALUMNO',
-  'GABINETE',
-] as const;
+/** PADRE = madre, padre o adulto responsable. EOE = Equipo de Orientación Estudiantil. */
+export const ROLES_ASISTENTE = ['DIRECTIVO', 'DOCENTE', 'PADRE', 'EOE'] as const;
 export type RolAsistente = (typeof ROLES_ASISTENTE)[number];
+
+export const DETALLES = ['RESUMIDO', 'DETALLADO'] as const;
+export type NivelDetalle = (typeof DETALLES)[number];
 
 export interface Institucion {
   nombre: string;

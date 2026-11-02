@@ -26,6 +26,12 @@ const EXTENSION_BY_MIME: Record<string, string> = {
   'audio/m4a': 'm4a',
   'audio/webm': 'webm',
   'video/webm': 'webm',
+  'audio/aac': 'aac',
+  'audio/x-aac': 'aac',
+  'audio/ogg': 'ogg',
+  'audio/opus': 'ogg',
+  'audio/flac': 'flac',
+  'audio/x-flac': 'flac',
 };
 
 export function parseWhisper(payload: unknown): TranscriptSegment[] {

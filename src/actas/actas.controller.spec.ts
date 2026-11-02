@@ -19,6 +19,7 @@ class FakeLlm extends LlmClient {
       desarrollo: ['La directora dio inicio a la reunión.', 'Se analizó la situación.'],
       acuerdos: [{ compromiso: 'Realizar una mediación.', responsable: 'Juan Gómez' }],
       mapeoHablantes: [{ speaker: 0, nombre: 'María Pérez' }],
+      advertencias: [{ indice: 0, razon: 'Voces superpuestas.' }],
     });
   }
 }
@@ -117,11 +118,13 @@ describe('ActasController', () => {
       const body = res.body as {
         acta: { motivo: string; cierre: { horaFinalizacion: string } };
         mapeoHablantes: unknown[];
+        advertencias: { indice: number; razon: string }[];
         transcripcion: unknown[];
       };
       expect(body.acta.motivo).toContain('convivencia');
       expect(body.acta.cierre.horaFinalizacion).toBe('10:45');
       expect(body.mapeoHablantes).toHaveLength(1);
+      expect(body.advertencias).toEqual([{ indice: 0, razon: 'Voces superpuestas.' }]);
       expect(body.transcripcion.length).toBeGreaterThan(0);
     });
 
@@ -159,6 +162,26 @@ describe('ActasController', () => {
         .attach('audio', audio, file);
       expect(res.status).toBe(400);
       expect(JSON.stringify(res.body)).toContain('tipoActa');
+    });
+
+    it('400 con roles retirados (TUTOR/GABINETE)', async () => {
+      const file = { filename: 'a.mp3', contentType: 'audio/mpeg' };
+      for (const rol of ['TUTOR', 'GABINETE', 'ALUMNO']) {
+        const meta = { ...setupEjemplo, asistentes: [{ nombre: 'X', rol }] };
+        const res = await post()
+          .field('metadata', JSON.stringify(meta))
+          .attach('audio', audio, file);
+        expect(res.status).toBe(400);
+      }
+    });
+
+    it('acepta audios de celular (aac / ogg)', async () => {
+      for (const contentType of ['audio/aac', 'audio/ogg', 'audio/x-m4a']) {
+        const res = await post('?formato=json')
+          .field('metadata', JSON.stringify(setupEjemplo))
+          .attach('audio', audio, { filename: 'nota', contentType });
+        expect(res.status).toBe(200);
+      }
     });
 
     it('400 con formato desconocido', async () => {

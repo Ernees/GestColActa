@@ -20,6 +20,12 @@ export const AUDIO_MIME_TYPES = [
   'audio/m4a',
   'audio/webm',
   'video/webm',
+  'audio/aac',
+  'audio/x-aac',
+  'audio/ogg',
+  'audio/opus',
+  'audio/flac',
+  'audio/x-flac',
 ] as const;
 
 @Injectable()

@@ -11,8 +11,8 @@ export const actaEjemplo: ActaEstructurada = {
   tipoActa: 'CONVIVENCIA',
   asistentes: [
     { nombre: 'María Pérez', rol: 'DIRECTIVO', dni: '20.111.222' },
-    { nombre: 'Juan Gómez', rol: 'TUTOR' },
-    { nombre: 'Lucía Fernández', rol: 'GABINETE', dni: '30.333.444' },
+    { nombre: 'Juan Gómez', rol: 'DOCENTE' },
+    { nombre: 'Lucía Fernández', rol: 'EOE', dni: '30.333.444' },
   ],
   motivo: 'Abordar la situación de convivencia ocurrida en el recreo del día 5 de marzo.',
   desarrollo: [
@@ -22,10 +22,10 @@ export const actaEjemplo: ActaEstructurada = {
   acuerdos: [
     {
       compromiso: 'Realizar seguimiento semanal del alumno.',
-      responsable: 'Tutor',
+      responsable: 'Docente',
       plazo: '30 días',
     },
-    { compromiso: 'Entrevista de devolución con la familia.', responsable: 'Gabinete' },
+    { compromiso: 'Entrevista de devolución con la familia.', responsable: 'EOE' },
   ],
   cierre: { horaFinalizacion: '10:45' },
 };

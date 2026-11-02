@@ -40,6 +40,8 @@
   @keyframes sp { to { transform:rotate(360deg); } }
   #result { display:none; }
   .ac { border:1px solid var(--line); border-radius:8px; padding:10px; margin-bottom:8px; display:grid; gap:8px; grid-template-columns:3fr 1.3fr 1.1fr auto; align-items:end; }
+  .ac.warn { border-color:#e0a100; background:#fff8e1; }
+  .warn-note { grid-column:1/-1; font-size:13px; color:#7a5200; }
   details { margin-top:10px; } summary { cursor:pointer; color:var(--muted); font-size:13px; }
   .seg { font-size:13px; padding:3px 0; border-bottom:1px dashed var(--line); } .seg b { color:var(--accent); }
   audio { width:100%; margin-top:10px; }
@@ -61,6 +63,11 @@
           <option value="EMI_INTERNA">EMI / reunión interna</option>
           <option value="GENERAL">General</option>
         </select></div>
+      <div><label>Nivel de detalle del acta</label>
+        <select id="detalle">
+          <option value="RESUMIDO">Resumido (lo esencial y lo acordado)</option>
+          <option value="DETALLADO">Detallado (postura de cada parte)</option>
+        </select></div>
       <div><label>Fecha</label><input id="fecha" type="date"></div>
       <div><label>Lugar</label><input id="lugar" value="la Sala de Reuniones"></div>
       <div><label>Hora de inicio</label><input id="hIni" type="time"></div>
@@ -80,8 +87,8 @@
       <div><div id="meter"><i></i></div><div class="hint" id="recHint">Tocá el círculo para grabar</div></div>
     </div>
     <audio id="player" controls hidden></audio>
-    <p class="hint" style="margin-bottom:6px">¿Ya tenés un audio? (m4a, mp3, wav, webm)</p>
-    <input id="file" type="file" accept="audio/*,.m4a,.mp3,.wav,.webm">
+    <p class="hint" style="margin-bottom:6px">¿Ya tenés un audio (por ejemplo una nota de voz del celular)? m4a, mp3, wav, webm, aac, ogg</p>
+    <input id="file" type="file" accept="audio/*,.m4a,.mp3,.wav,.webm,.aac,.ogg,.opus,.flac">
   </section>
 
   <section>
@@ -104,7 +111,8 @@
 
 <script>
 const $ = (id) => document.getElementById(id);
-const ROLES = [['DIRECTIVO','Directivo/a'],['DOCENTE','Docente'],['TUTOR','Tutor/a'],['ALUMNO','Alumno/a'],['GABINETE','Gabinete']];
+const ROLES = [['DIRECTIVO','Directivo/a'],['DOCENTE','Docente'],['PADRE','Padre / Madre'],['EOE','EOE (Equipo de Orientación Estudiantil)']];
+const ROL_VALIDO = new Set(ROLES.map(([v]) => v));
 const pad = (n) => String(n).padStart(2,'0');
 const hhmm = (d) => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 let acta = null, recorder = null, chunks = [], audioBlob = null, startedAt = 0, tick = null, stream = null, ctx = null, raf = 0;
@@ -112,7 +120,7 @@ let acta = null, recorder = null, chunks = [], audioBlob = null, startedAt = 0, 
 // ---------- estado persistente ----------
 const SAVED = JSON.parse(localStorage.getItem('gca') || 'null');
 $('fecha').value = new Date().toISOString().slice(0,10);
-if (SAVED) { $('inst').value = SAVED.inst; $('sub').value = SAVED.sub; $('lugar').value = SAVED.lugar; $('tipo').value = SAVED.tipo; }
+if (SAVED) { $('inst').value = SAVED.inst; $('sub').value = SAVED.sub; $('lugar').value = SAVED.lugar; $('tipo').value = SAVED.tipo; if (SAVED.detalle) $('detalle').value = SAVED.detalle; }
 
 function addAsis(a = { nombre:'', rol:'DOCENTE', dni:'' }) {
   const d = document.createElement('div'); d.className = 'row';
@@ -125,7 +133,7 @@ function addAsis(a = { nombre:'', rol:'DOCENTE', dni:'' }) {
   d.addEventListener('input', refresh);
   $('asis').appendChild(d);
 }
-(SAVED?.asis?.length ? SAVED.asis : [{nombre:'Laura Benítez',rol:'DIRECTIVO',dni:''},{nombre:'Carlos Domínguez',rol:'TUTOR',dni:''}]).forEach(addAsis);
+(SAVED?.asis?.length ? SAVED.asis.map(a => ({ ...a, rol: ROL_VALIDO.has(a.rol) ? a.rol : 'DOCENTE' })) : [{nombre:'Laura Benítez',rol:'DIRECTIVO',dni:''},{nombre:'Carlos Domínguez',rol:'DOCENTE',dni:''}]).forEach(addAsis);
 $('addAsis').onclick = () => addAsis();
 
 const asistentes = () => [...$('asis').children].map(r => {
@@ -136,7 +144,7 @@ const asistentes = () => [...$('asis').children].map(r => {
 function setup() {
   return { institucion: { nombre: $('inst').value.trim(), ...($('sub').value.trim() ? { subtitulo: $('sub').value.trim() } : {}) },
     metadatos: { fecha: $('fecha').value, horaInicio: $('hIni').value, horaFin: $('hFin').value, lugar: $('lugar').value.trim() },
-    tipoActa: $('tipo').value, asistentes: asistentes() };
+    tipoActa: $('tipo').value, detalle: $('detalle').value, asistentes: asistentes() };
 }
 function refresh() {
   const s = setup();
@@ -194,13 +202,18 @@ function showInfo(html) { const s = $('status'); s.className = 'info'; s.innerHT
 function showErr(msg) { const s = $('status'); s.className = 'err'; s.textContent = msg; }
 function hideStatus() { $('status').className = ''; }
 const errText = async (res) => { try { const j = await res.json(); return [].concat(j.message || j).join('\n'); } catch { return 'Error ' + res.status; } };
-const baseMime = (b) => (b.type || 'audio/webm').split(';')[0];
-const extOf = (m) => ({ 'audio/webm':'webm','video/webm':'webm','audio/mp4':'m4a','audio/x-m4a':'m4a','audio/m4a':'m4a','audio/mpeg':'mp3','audio/mp3':'mp3','audio/wav':'wav','audio/x-wav':'wav' }[m] || 'webm');
+const MIME_BY_EXT = { m4a:'audio/mp4', mp4:'audio/mp4', mp3:'audio/mpeg', wav:'audio/wav', webm:'audio/webm', aac:'audio/aac', ogg:'audio/ogg', oga:'audio/ogg', opus:'audio/ogg', flac:'audio/flac' };
+const baseMime = (b) => {
+  const t = (b.type || '').split(';')[0];
+  if (t && t !== 'application/octet-stream' && t.startsWith('audio/') || t === 'video/webm') return t;
+  return MIME_BY_EXT[(b.name || '').split('.').pop().toLowerCase()] || 'audio/webm';
+};
+const extOf = (m) => ({ 'audio/webm':'webm','video/webm':'webm','audio/mp4':'m4a','audio/x-m4a':'m4a','audio/m4a':'m4a','audio/mpeg':'mp3','audio/mp3':'mp3','audio/wav':'wav','audio/x-wav':'wav','audio/aac':'aac','audio/x-aac':'aac','audio/ogg':'ogg','audio/flac':'flac' }[m] || 'webm');
 
 // ---------- procesar ----------
 $('procesar').onclick = async () => {
   const s = setup();
-  localStorage.setItem('gca', JSON.stringify({ inst: $('inst').value, sub: $('sub').value, lugar: $('lugar').value, tipo: $('tipo').value, asis: s.asistentes }));
+  localStorage.setItem('gca', JSON.stringify({ inst: $('inst').value, sub: $('sub').value, lugar: $('lugar').value, tipo: $('tipo').value, detalle: $('detalle').value, asis: s.asistentes }));
   const fd = new FormData();
   const mime = baseMime(audioBlob);
   fd.append('audio', new File([audioBlob], `reunion.${extOf(mime)}`, { type: mime }));
@@ -210,16 +223,17 @@ $('procesar').onclick = async () => {
   try {
     const res = await fetch('/actas/procesar-reunion?formato=json', { method: 'POST', body: fd });
     if (!res.ok) throw new Error(await errText(res));
-    renderResult(await res.json()); hideStatus();
+    hideStatus(); renderResult(await res.json());
   } catch (e) { showErr(e.message); } finally { refresh(); }
 };
 
-function addAcuerdo(a = { compromiso:'', responsable:'', plazo:'' }) {
-  const d = document.createElement('div'); d.className = 'ac';
+function addAcuerdo(a = { compromiso:'', responsable:'', plazo:'' }, aviso = '') {
+  const d = document.createElement('div'); d.className = 'ac' + (aviso ? ' warn' : '');
   d.innerHTML = `<div><label>Compromiso</label><textarea class="c" style="min-height:48px"></textarea></div>
     <div><label>Responsable</label><input class="r"></div><div><label>Plazo (opcional)</label><input class="p"></div>
     <button type="button" class="small">✕</button>`;
   d.querySelector('.c').value = a.compromiso; d.querySelector('.r').value = a.responsable; d.querySelector('.p').value = a.plazo || '';
+  if (aviso) { const n = document.createElement('div'); n.className = 'warn-note'; n.textContent = '⚠ Revisar antes de firmar: ' + aviso; d.appendChild(n); }
   d.querySelector('button').onclick = () => d.remove();
   $('acuerdos').appendChild(d);
 }
@@ -228,12 +242,16 @@ $('addAc').onclick = () => addAcuerdo();
 function renderResult(r) {
   acta = r.acta;
   $('motivo').value = acta.motivo; $('desarrollo').value = acta.desarrollo.join('\n');
-  $('acuerdos').innerHTML = ''; acta.acuerdos.forEach(addAcuerdo);
+  $('acuerdos').innerHTML = '';
+  const avisos = new Map((r.advertencias || []).map(a => [a.indice, a.razon]));
+  acta.acuerdos.forEach((a, i) => addAcuerdo(a, avisos.get(i) || ''));
+  const sinId = r.mapeoHablantes.filter(m => m.nombre === null).length;
   $('mapeo').textContent = r.mapeoHablantes.map(m => `Hablante ${m.speaker} → ${m.nombre ?? 'sin identificar'}`).join('  ·  ');
   $('trans').innerHTML = '';
   r.transcripcion.forEach(t => { const d = document.createElement('div'); d.className = 'seg';
     const b = document.createElement('b'); b.textContent = `[${pad(Math.floor(t.start/60))}:${pad(Math.floor(t.start%60))}] H${t.speaker}: `;
     d.append(b, document.createTextNode(t.text)); $('trans').appendChild(d); });
+  if (avisos.size || sinId) showInfo(`⚠ ${avisos.size ? `${avisos.size} acuerdo(s) para revisar (resaltados en amarillo). ` : ''}${sinId ? `${sinId} hablante(s) no se pudieron identificar.` : ''}`);
   $('result').style.display = 'block'; $('result').scrollIntoView({ behavior: 'smooth' });
 }
 

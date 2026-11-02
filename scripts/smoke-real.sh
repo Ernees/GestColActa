@@ -9,11 +9,11 @@ WORK="$(mktemp -d)"
 trap 'kill "${SERVER_PID:-}" 2>/dev/null || true; rm -rf "$WORK"' EXIT
 
 VOZ_A="Eddy (Spanish (Mexico))"   # Directora
-VOZ_B="Flo (Spanish (Mexico))"    # Tutor
+VOZ_B="Flo (Spanish (Mexico))"    # Docente
 LINEAS=(
 "A|Buenas tardes a todos. Damos comienzo a la reunión de convivencia de quinto grado, convocada por los conflictos ocurridos en el recreo del viernes pasado."
 "B|Gracias, directora. Desde el curso venimos observando discusiones entre varios alumnos, y el viernes un compañero terminó lastimado en una pelea durante el recreo."
-"A|Entiendo. Propongo que el tutor realice una instancia de mediación con los alumnos involucrados antes del próximo viernes."
+"A|Entiendo. Propongo que el docente realice una instancia de mediación con los alumnos involucrados antes del próximo viernes."
 "B|De acuerdo, yo me encargo de la mediación antes del viernes. Además voy a registrar lo conversado en el cuaderno de seguimiento del curso."
 "A|Perfecto. Por mi parte, Dirección va a comunicar a las familias lo acordado a través del cuaderno de comunicados en las próximas cuarenta y ocho horas."
 "B|Muy bien. Entonces quedamos así, y retomamos el tema en la reunión de la semana próxima."
@@ -55,7 +55,7 @@ METADATA='{
  "tipoActa":"CONVIVENCIA",
  "asistentes":[
   {"nombre":"Laura Benítez","rol":"DIRECTIVO","dni":"27.345.678"},
-  {"nombre":"Carlos Domínguez","rol":"TUTOR","dni":"31.987.654"}]
+  {"nombre":"Carlos Domínguez","rol":"DOCENTE","dni":"31.987.654"}]
 }'
 
 echo "→ POST /actas/procesar-reunion (Deepgram + Claude)…"

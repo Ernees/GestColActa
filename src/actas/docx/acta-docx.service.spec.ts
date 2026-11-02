@@ -35,7 +35,7 @@ describe('ActaDocxService', () => {
     expect(xml).toContain('Buenos Aires, 9 de marzo de 2026');
     expect(xml).toContain('siendo las 09:30 horas');
     expect(xml).toContain('María Pérez (Directivo/a, DNI 20.111.222)');
-    expect(xml).toContain('Juan Gómez (Tutor/a) y Lucía Fernández');
+    expect(xml).toContain('Juan Gómez (Docente) y Lucía Fernández');
     expect(xml).toContain(actaEjemplo.motivo);
     expect(xml).toContain('Se cierra la reunión siendo las 10:45 horas');
   });
@@ -45,7 +45,8 @@ describe('ActaDocxService', () => {
     for (const p of actaEjemplo.desarrollo) expect(xml).toContain(p);
     expect(xml).toContain('Realizar seguimiento semanal del alumno.');
     expect(xml).toContain('30 días');
-    expect(xml).toContain('Gabinete');
+    expect(xml).toContain('EOE');
+    expect(xml.toLowerCase()).not.toContain('gabinete');
   });
 
   it('genera un bloque de firma con línea punteada por asistente', async () => {
@@ -63,7 +64,7 @@ describe('ActaDocxService', () => {
     const xml = await documentXml(
       await service.generate({
         ...actaEjemplo,
-        acuerdos: [{ compromiso: 'Realizar una mediación', responsable: 'Tutor' }],
+        acuerdos: [{ compromiso: 'Realizar una mediación', responsable: 'Docente' }],
       }),
     );
     expect(xml).toContain('Realizar una mediación.');

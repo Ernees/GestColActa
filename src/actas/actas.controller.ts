@@ -16,7 +16,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
 import { AiStructuringService } from '../ai/ai-structuring.service';
-import { MapeoHablanteDto } from '../ai/estructuracion-llm.dto';
+import { AdvertenciaDto, MapeoHablanteDto } from '../ai/estructuracion-llm.dto';
 import {
   AUDIO_MIME_TYPES,
   TranscriptionService,
@@ -40,6 +40,7 @@ export enum FormatoRespuesta {
 export interface ProcesarReunionJson {
   acta: ActaEstructuradaDto;
   mapeoHablantes: MapeoHablanteDto[];
+  advertencias: AdvertenciaDto[];
   transcripcion: TranscriptSegment[];
 }
 
@@ -112,10 +113,18 @@ export class ActasController {
       audio.buffer,
       audio.mimetype,
     );
-    const { acta, mapeoHablantes } = await this.ai.structure(transcripcion, setup);
+    const { acta, mapeoHablantes, advertencias } = await this.ai.structure(
+      transcripcion,
+      setup,
+    );
 
     if (formato === FormatoRespuesta.JSON) {
-      return { acta, mapeoHablantes, transcripcion: transcripcion.segments };
+      return {
+        acta,
+        mapeoHablantes,
+        advertencias,
+        transcripcion: transcripcion.segments,
+      };
     }
 
     const buffer = await this.docx.generate(acta);

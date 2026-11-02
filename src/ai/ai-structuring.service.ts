@@ -8,14 +8,22 @@ import { validate } from 'class-validator';
 import { ActaEstructuradaDto } from '../actas/dto/acta-estructurada.dto';
 import { SetupReunionDto } from '../actas/dto/setup-reunion.dto';
 import { Transcription } from '../transcription/transcription.types';
-import { EstructuracionLlmDto, MapeoHablanteDto } from './estructuracion-llm.dto';
+import {
+  AdvertenciaDto,
+  EstructuracionLlmDto,
+  MapeoHablanteDto,
+} from './estructuracion-llm.dto';
 import { LlmClient } from './llm-client';
 import { INPUT_SCHEMA, SYSTEM_PROMPT, TOOL_NAME, buildUserPrompt } from './prompts';
 
 export interface ActaProcesada {
   acta: ActaEstructuradaDto;
   mapeoHablantes: MapeoHablanteDto[];
+  /** Acuerdos que conviene revisar manualmente antes de firmar. */
+  advertencias: AdvertenciaDto[];
 }
+
+export const RESPONSABLE_A_DEFINIR = 'A definir';
 
 @Injectable()
 export class AiStructuringService {
@@ -65,7 +73,31 @@ export class AiStructuringService {
       speaker: m.speaker,
       nombre: m.nombre !== null && nombres.has(m.nombre) ? m.nombre : null,
     }));
-    return { acta: candidate, mapeoHablantes };
+    return {
+      acta: candidate,
+      mapeoHablantes,
+      advertencias: this.advertencias(llmOut, candidate),
+    };
+  }
+
+  /** Combina las advertencias del LLM con las deterministas ("A definir"). */
+  private advertencias(
+    llmOut: EstructuracionLlmDto,
+    acta: ActaEstructuradaDto,
+  ): AdvertenciaDto[] {
+    const total = acta.acuerdos.length;
+    const byIndex = new Map<number, string>();
+    for (const a of llmOut.advertencias ?? []) {
+      if (a.indice < total) byIndex.set(a.indice, a.razon);
+    }
+    acta.acuerdos.forEach((ac, i) => {
+      if (ac.responsable.trim().toLowerCase() === RESPONSABLE_A_DEFINIR.toLowerCase()) {
+        byIndex.set(i, byIndex.get(i) ?? 'No quedó claro quién asume este compromiso.');
+      }
+    });
+    return [...byIndex.entries()]
+      .sort(([a], [b]) => a - b)
+      .map(([indice, razon]) => ({ indice, razon }));
   }
 
   private async validateLlmOutput(raw: unknown): Promise<EstructuracionLlmDto> {

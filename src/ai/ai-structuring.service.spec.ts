@@ -83,6 +83,55 @@ describe('AiStructuringService', () => {
     expect(req?.inputSchema).toHaveProperty('required');
   });
 
+  it('devuelve advertencias del LLM y marca "A definir" automáticamente', async () => {
+    const out = {
+      ...llmOutput,
+      acuerdos: [
+        { compromiso: 'Realizar seguimiento.', responsable: 'A definir' },
+        { compromiso: 'Informar a la familia.', responsable: 'María Pérez' },
+        { compromiso: 'Armar informe.', responsable: 'Juan Gómez' },
+      ],
+      advertencias: [
+        { indice: 1, razon: 'Voces superpuestas.' },
+        { indice: 9, razon: 'Índice fuera de rango.' },
+      ],
+    };
+    const { advertencias } = await new AiStructuringService(new FakeLlm(out)).structure(
+      transcription,
+      setup,
+    );
+    expect(advertencias).toEqual([
+      { indice: 0, razon: 'No quedó claro quién asume este compromiso.' },
+      { indice: 1, razon: 'Voces superpuestas.' },
+    ]);
+  });
+
+  it('sin advertencias devuelve lista vacía', async () => {
+    const { advertencias } = await new AiStructuringService(
+      new FakeLlm(llmOutput),
+    ).structure(transcription, setup);
+    expect(advertencias).toEqual([]);
+  });
+
+  it('el nivel de detalle viaja en el prompt (RESUMIDO por defecto)', async () => {
+    const llm = new FakeLlm(llmOutput);
+    const svc = new AiStructuringService(llm);
+    await svc.structure(transcription, setup);
+    await svc.structure(
+      transcription,
+      plainToInstance(SetupReunionDto, { ...setupEjemplo, detalle: 'DETALLADO' }),
+    );
+    expect(llm.requests[0]?.user).toContain('Nivel de detalle: RESUMIDO');
+    expect(llm.requests[1]?.user).toContain('Nivel de detalle: DETALLADO');
+  });
+
+  it('el system prompt define los roles y prohíbe "gabinete"', async () => {
+    const llm = new FakeLlm(llmOutput);
+    await new AiStructuringService(llm).structure(transcription, setup);
+    expect(llm.requests[0]?.system).toContain('EOE (Equipo de Orientación Estudiantil)');
+    expect(llm.requests[0]?.system).toContain('PADRE');
+  });
+
   it('rechaza salida del LLM con forma inválida', async () => {
     const bad = new FakeLlm({ ...llmOutput, desarrollo: [] });
     await expect(
